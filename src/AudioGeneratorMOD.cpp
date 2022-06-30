@@ -111,15 +111,19 @@ done:
 
 bool AudioGeneratorMOD::begin(AudioFileSource *source, AudioOutput *out)
 {
+    printf("MOD begin\n");
   if (running) stop();
   
+    printf("MOD check source/out\n");
   if (!source) return false;
   file = source;
   if (!out) return false;
   output = out;
   
+    printf("MOD check open\n");
   if (!file->isOpen()) return false; // Can't read the file!
 
+    printf("MOD properties\n");
   // Set the output values properly
   if (!output->SetRate(sampleRate)) return false;
   if (!output->SetBitsPerSample(16)) return false;
@@ -128,6 +132,7 @@ bool AudioGeneratorMOD::begin(AudioFileSource *source, AudioOutput *out)
 
   UpdateAmiga();
 
+    printf("MOD alloc channels\n");
   for (int i = 0; i < CHANNELS; i++) {
     FatBuffer.channels[i] = reinterpret_cast<uint8_t*>(calloc(fatBufferSize, 1));
     if (!FatBuffer.channels[i]) {
@@ -198,11 +203,13 @@ static inline uint16_t MakeWord(uint8_t h, uint8_t l) { return h << 8 | l; }
 
 bool AudioGeneratorMOD::LoadHeader()
 {
+    printf("MOD load header\n");
   uint8_t i;
   uint8_t temp[4];
   uint8_t junk[22];
 
   if (20 != file->read(/*Mod.name*/junk, 20)) return false; // Skip MOD name
+    printf("MOD load samples\n");
   for (i = 0; i < SAMPLES; i++) {
     if (22 != file->read(junk /*Mod.samples[i].name*/, 22)) return false; // Skip sample name
     if (2 != file->read(temp, 2)) return false;
@@ -218,9 +225,11 @@ bool AudioGeneratorMOD::LoadHeader()
       Mod.samples[i].loopLength = Mod.samples[i].length - Mod.samples[i].loopBegin;
   }
 
+    printf("MOD load length+\n");
   if (1 != file->read(&Mod.songLength, 1)) return false;
   if (1 != file->read(temp, 1)) return false; // Discard this byte
 
+    printf("MOD load patterns\n");
   Mod.numberOfPatterns = 0;
   for (i = 0; i < 128; i++) {
     if (1 != file->read(&Mod.order[i], 1)) return false;
@@ -229,6 +238,7 @@ bool AudioGeneratorMOD::LoadHeader()
   }
   Mod.numberOfPatterns++;
 
+    printf("MOD channels\n");
   // Offset 1080
   if (4 != file->read(temp, 4)) return false;;
   if (!strncmp(reinterpret_cast<const char*>(temp + 1), "CHN", 3))
@@ -248,6 +258,7 @@ bool AudioGeneratorMOD::LoadHeader()
 
 void AudioGeneratorMOD::LoadSamples()
 {
+    printf("MOD load samples\n");
   uint8_t i;
   uint32_t fileOffset = 1084 + Mod.numberOfPatterns * ROWS * Mod.numberOfChannels * 4 - 1;
 
