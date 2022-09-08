@@ -77,6 +77,10 @@ bool AudioGeneratorMOD::stop()
   if (file) file->close();
   running = false;
   output->stop();
+
+  if (sampleStartMem) free(sampleStartMem);
+  sampleStartMem = NULL;
+
   return true;
 }
 
@@ -262,6 +266,8 @@ void AudioGeneratorMOD::LoadSamples()
   uint8_t i;
   uint32_t fileOffset = 1084 + Mod.numberOfPatterns * ROWS * Mod.numberOfChannels * 4 - 1;
 
+  int sampleStartMemSize = 0;
+
   for (i = 0; i < SAMPLES; i++) {
 
     if (Mod.samples[i].length) {
@@ -277,8 +283,34 @@ void AudioGeneratorMOD::LoadSamples()
         Mixer.sampleLoopEnd[i] = 0;
       }
       fileOffset += Mod.samples[i].length;
+
+      sampleStarts[i].size = 64 + (int)floor(random() * 16) * 2;
+      if (sampleStarts[i].size > Mod.samples[i].length) sampleStarts[i].size = Mod.samples[i].length;
+      sampleStartMemSize += sampleStarts[i].size;
     }
 
+  }
+
+  sampleStartMem = (uint8_t*)malloc(sampleStartMemSize);
+  uint8_t* tmp = sampleStartMem;
+  for (i = 0; i < SAMPLES; i++) {
+
+    if (Mod.samples[i].length) {
+      sampleStarts[i].data = tmp;
+      sampleStarts[i].start = (uint32_t)Mixer.sampleBegin[i];
+      tmp += sampleStarts[i].size;
+
+      if (file->seek(sampleStarts[i].start, SEEK_SET))
+      {
+        if (sampleStarts[i].size != file->read(sampleStarts[i].data, sampleStarts[i].size)) {
+          sampleStarts[i].size = 0;
+        }
+      }
+      else
+      {
+        samplesStarts[i].size = 0;
+      }
+    }
   }
 
 }
@@ -797,28 +829,37 @@ void AudioGeneratorMOD::GetSample(int16_t sample[2])
 
     }
 
-    if (samplePointer < FatBuffer.samplePointer[channel] ||
-        samplePointer >= FatBuffer.samplePointer[channel] + fatBufferSize - 1 ||
-        Mixer.channelSampleNumber[channel] != FatBuffer.channelSampleNumber[channel]) {
-
-      uint32_t toRead = Mixer.sampleEnd[Mixer.channelSampleNumber[channel]] - samplePointer + 1;
-      if (toRead > (uint32_t)fatBufferSize) toRead  = fatBufferSize;
-
-      if (!file->seek(samplePointer, SEEK_SET)) {
-        stop();
-        return;
-      }
-      if (toRead != file->read(FatBuffer.channels[channel], toRead)) {
-        stop();
-        return;
-      }
-
-      FatBuffer.samplePointer[channel] = samplePointer;
-      FatBuffer.channelSampleNumber[channel] = Mixer.channelSampleNumber[channel];
+    if (samplePointer >= sampleStarts[Mixer.channelSampleNumber[channel]].start &&
+        samplePointer < sampleStarts[Mixer.channelSampleNumber[channel]].start + sampleStarts[Mixer.channelSampleNumber[channel]].size)
+    {
+        current = sampleStarts[Mixer.channelSampleNumber[channel]].data[samplePointer - sampleStarts[Mixer.channelSampleNumber[channel]].start];
+        next = sampleStarts[Mixer.channelSampleNumber[channel]].data[samplePointer + 1 - sampleStarts[Mixer.channelSampleNumber[channel]].start];
     }
+    else
+    {
+      if (samplePointer < FatBuffer.samplePointer[channel] ||
+          samplePointer >= FatBuffer.samplePointer[channel] + fatBufferSize - 1 ||
+          Mixer.channelSampleNumber[channel] != FatBuffer.channelSampleNumber[channel]) {
 
-    current = FatBuffer.channels[channel][(samplePointer - FatBuffer.samplePointer[channel]) /*& (FATBUFFERSIZE - 1)*/];
-    next = FatBuffer.channels[channel][(samplePointer + 1 - FatBuffer.samplePointer[channel]) /*& (FATBUFFERSIZE - 1)*/];
+        uint32_t toRead = Mixer.sampleEnd[Mixer.channelSampleNumber[channel]] - samplePointer + 1;
+        if (toRead > (uint32_t)fatBufferSize) toRead  = fatBufferSize;
+
+        if (!file->seek(samplePointer, SEEK_SET)) {
+          stop();
+          return;
+        }
+        if (toRead != file->read(FatBuffer.channels[channel], toRead)) {
+          stop();
+          return;
+        }
+
+        FatBuffer.samplePointer[channel] = samplePointer;
+        FatBuffer.channelSampleNumber[channel] = Mixer.channelSampleNumber[channel];
+      }
+
+      current = FatBuffer.channels[channel][(samplePointer - FatBuffer.samplePointer[channel]) /*& (FATBUFFERSIZE - 1)*/];
+      next = FatBuffer.channels[channel][(samplePointer + 1 - FatBuffer.samplePointer[channel]) /*& (FATBUFFERSIZE - 1)*/];
+    }
 	
 	// preserve a few more bits from sample interpolation, by upscaling input values.
 	// This does (slightly) reduce quantization noise in higher frequencies, typically above 8kHz.

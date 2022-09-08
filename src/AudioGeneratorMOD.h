@@ -153,6 +153,13 @@ class AudioGeneratorMOD : public AudioGenerator
       uint8_t channelSampleNumber[CHANNELS];
     } fatBuffer;
 
+    typedef struct sampleStartBuffer
+    {      
+      uint8_t* data;
+      uint32_t start;
+      uint8_t size;
+    } sampleStartBuffer;
+
     // Effects
     typedef enum { ARPEGGIO = 0, PORTAMENTOUP, PORTAMENTODOWN, TONEPORTAMENTO, VIBRATO, PORTAMENTOVOLUMESLIDE,
                    VIBRATOVOLUMESLIDE, TREMOLO, SETCHANNELPANNING, SETSAMPLEOFFSET, VOLUMESLIDE, JUMPTOORDER,
@@ -167,7 +174,9 @@ class AudioGeneratorMOD : public AudioGenerator
     player Player;
     mod Mod;
     mixer Mixer;
-    fatBuffer FatBuffer;
+    fatBuffer FatBuffer;    
+    sampleStartBuffer sampleStarts[SAMPLES];
+    uint8_t* sampleStartMem;
 };
 
 #endif
