@@ -308,7 +308,7 @@ void AudioGeneratorMOD::LoadSamples()
       }
       else
       {
-        samplesStarts[i].size = 0;
+        sampleStarts[i].size = 0;
       }
     }
   }
