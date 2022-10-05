@@ -29,6 +29,7 @@
 class AudioFileSourceFS : public AudioFileSource
 {
   public:
+    AudioFileSourceFS(fs::File &f) { this->f = f; }
     AudioFileSourceFS(fs::FS &fs) { filesystem = &fs; }
     AudioFileSourceFS(fs::FS &fs, const char *filename);
     virtual ~AudioFileSourceFS() override;
