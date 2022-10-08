@@ -106,17 +106,20 @@ bool AudioOutputI2S::SetPinout(int bclk, int wclk, int dout)
 }
 bool AudioOutputI2S::SetRate(int hz)
 {
-  // TODO - have a list of allowable rates from constructor, check them
-  this->hertz = hz;
-  if (i2sOn)
+  if (hz != this->hertz)
   {
-  #ifdef ESP32
-      i2s_set_sample_rates((i2s_port_t)portNo, AdjustI2SRate(hz));
-  #elif defined(ESP8266)
-      i2s_set_rate(AdjustI2SRate(hz));
-  #elif defined(ARDUINO_ARCH_RP2040)
-      i2s.setFrequency(hz);
-  #endif
+      // TODO - have a list of allowable rates from constructor, check them
+      this->hertz = hz;
+      if (i2sOn)
+      {
+      #ifdef ESP32
+          i2s_set_sample_rates((i2s_port_t)portNo, AdjustI2SRate(hz));
+      #elif defined(ESP8266)
+          i2s_set_rate(AdjustI2SRate(hz));
+      #elif defined(ARDUINO_ARCH_RP2040)
+          i2s.setFrequency(hz);
+      #endif
+      }
   }
   return true;
 }
